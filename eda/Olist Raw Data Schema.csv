@@ -1,0 +1,62 @@
+Table,Column Name,Description,Data Type,Null Values,Primary / Foreign Key,Notes,dbt actions
+"olist_customers_dataset.csv (99441, 5)",,,,,,,
+olist_customers_dataset,customer_id,Unique identifier for each customer (per order),String,Non null,Primary,"Unique, Non-Null",Dropped (to denormalise)
+olist_customers_dataset,customer_unique_id,Unique identifier per customer across orders (anonymized),String,Non null,,Non unique,Becomes a Primary Key: customer_durable_id
+olist_customers_dataset,customer_zip_code_prefix,Zip code prefix of the customer's address,Int64,Non null,Foreign key on geolocation dataset,,
+olist_customers_dataset,customer_city,City where the customer is located,String,Non null,,,Dropped (to denormalise)
+olist_customers_dataset,customer_state,State where the customer is located,String,Non null,,,Dropped (to denormalise)
+"olist_orders_dataset.csv (99441, 8)",,,,,,,
+olist_orders_dataset,order_id,Unique identifier for each order,String,Non null,Primary,"Unique, Non-Null",
+olist_orders_dataset,customer_id,Identifier of the customer who placed the order,String,Non null,Foreign key on olist_customers_dataset,,
+olist_orders_dataset,order_status,"Current status of the order (e.g. delivered, shipped, canceled)",String,Non null,,,
+olist_orders_dataset,order_purchase_timestamp,Date and time when the order was placed,String,Non null,,,Convert to datetime
+olist_orders_dataset,order_approved_at,Date and time when payment for the order was approved,String,160 Null,,,Convert to datetime
+olist_orders_dataset,order_delivered_carrier_date,Date and time when the order was handed over to the carrier,String,1783 Null,,,Convert to datetime
+olist_orders_dataset,order_delivered_customer_date,Date and time when the order was delivered to the customer,String,2965 Null,,,Convert to datetime
+olist_orders_dataset,order_estimated_delivery_date,Estimated date when the order is expected to be delivered,String,Non null,,,Convert to datetime
+"olist_order_items_dataset.csv (112650, 7)",,,,,,,
+olist_order_items_dataset,order_id,Identifier of the order,String,Non null,Composite key with order_item_id,Non unique,
+olist_order_items_dataset,order_item_id,Sequential identifier for each item within an order,Int64,Non null,Composite key with order_id,Non unique,
+olist_order_items_dataset,product_id,Identifier of the product being ordered,String,Non null,,Note the same product can be sold by different sellers at different times,
+olist_order_items_dataset,seller_id,Identifier of the seller who listed the product,String,Non null,,Non unique,
+olist_order_items_dataset,shipping_limit_date,Date and time by which the seller must ship the product,String,Non null,,,Convert to datetime
+olist_order_items_dataset,price,Price of the product,Float64,Non null,,,
+olist_order_items_dataset,freight_value,Shipping fee for the product,Float64,Non null,,,
+"olist_order_payments_dataset.csv (103886, 5)",,,,,,,
+olist_order_payments_dataset,order_id,Identifier of the order,String,Non null,Composite key with payment_sequential,Non unique,
+olist_order_payments_dataset,payment_sequential,Index number for each payment made for an order,Int64,Non null,Composite key with order_id,,
+olist_order_payments_dataset,payment_type,"Type of payment used (e.g. credit card, debit card, voucher)",String,Non null,,,
+olist_order_payments_dataset,payment_installments,Number of installments in which the payment was made,Int64,Non null,,,
+olist_order_payments_dataset,payment_value,Value of the payment made,Float64,Non null,,,
+"olist_order_reviews_dataset.csv (99224, 7)",,,,,,,
+olist_order_reviews_dataset,review_id,Unique identifier for each review,String,Non null,,"Not unique, only unique after dropping order_id",
+olist_order_reviews_dataset,order_id,Identifier of the order the review is associated with,String,Non null,,,
+olist_order_reviews_dataset,review_score,Numerical score (1–5) given by the customer,Int64,Non null,,,
+olist_order_reviews_dataset,review_comment_title,Title of the review comment (optional),String,87656 Null,,,
+olist_order_reviews_dataset,review_comment_message,Text body of the review comment (optional),String,58247 Null,,,
+olist_order_reviews_dataset,review_creation_date,Date and time when the review was created,String,Non null,,,
+olist_order_reviews_dataset,review_answer_timestamp,Date and time when the seller responded to the review,String,Non null,,,Convert to datetime
+"olist_sellers_dataset.csv (3095, 4)",,,,,,,
+olist_sellers_dataset,seller_id,Unique identifier for each seller,String,Non null,Primary,"Unique, Non-Null",
+olist_sellers_dataset,seller_zip_code_prefix,Zip code prefix for the seller's location,Int64,Non null,,,
+olist_sellers_dataset,seller_city,City where the seller is located,String,Non null,,,Dropped (to denormalise)
+olist_sellers_dataset,seller_state,State where the seller is located,String,Non null,,,Dropped (to denormalise)
+"olist_products_dataset.csv (32951, 9)",,,,,,,
+olist_products_dataset,product_id,Unique identifier for each product,String,Non null,Primary,"Unique, Non-Null",
+olist_products_dataset,product_category_name,Name of the category that the product belongs to (Portuguese),String,610 Null,,,
+olist_products_dataset,product_name_lenght,Number of characters in the product name,Float64,610 Null,,,
+olist_products_dataset,product_description_lenght,Number of characters in the product description,Float64,610 Null,,,
+olist_products_dataset,product_photos_qty,Number of photos for the product,Float64,610 Null,,,
+olist_products_dataset,product_weight_g,Weight of the product in grams,Float64,Non null,,,
+olist_products_dataset,product_length_cm,Length of the product in centimeters,Float64,Non null,,,
+olist_products_dataset,product_height_cm,Height of the product in centimeters,Float64,Non null,,,
+olist_products_dataset,product_width_cm,Width of the product in centimeters,Float64,Non null,,,
+"product_category_name_translation.csv (71,2)",,,,,,,
+product_category_name_translation,product_category_name,Name of the product category in Portuguese,String,Non null,snake case,,
+product_category_name_translation,product_category_name_english,Name of the product category in English,String,Non null,snake case,,
+"olist_geolocation_dataset.csv (1000163, 5)",,,,,,,
+olist_geolocation_dataset,geolocation_zip_code_prefix,Zip code prefix for the location,Int64,Non null,,Non unique,
+olist_geolocation_dataset,geolocation_lat,Latitude of the location,Float64,Non null,,,Dropped (not used)
+olist_geolocation_dataset,geolocation_lng,Longitude of the location,Float64,Non null,,,Dropped (not used)
+olist_geolocation_dataset,geolocation_city,City of the location,String,Non null,,Has encoded duplicate values (e.g. sao paulo and são paulo),Cleaned
+olist_geolocation_dataset,geolocation_state,State of the location (two-letter capitalised),String,Non null,,,
