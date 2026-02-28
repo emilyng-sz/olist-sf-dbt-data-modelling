@@ -4,5 +4,10 @@ logs*
 venv*
 __pycache__*
 .DS_Store
-*.gitignore
+
+# dbt
+.user.yml
 *profiles.yml
+target/
+dbt_packages/
+logs/
