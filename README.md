@@ -88,8 +88,8 @@ transform/
   - Data Marts:
     a. Products Table
     b. Customer x Products Table
-  - ERD:
-![alt text](image.png)
+  - Final ERD:
+![alt text](docs/ERD.png)
 
 # How to run
 1. Venv
