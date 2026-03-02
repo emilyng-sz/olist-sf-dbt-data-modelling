@@ -1,0 +1,6 @@
+dbt-snowflake==1.11.6
+loguru==0.7.3
+pandas==3.0.1
+polars==1.38.1
+python-dotenv==1.2.1
+snowflake-connector-python==4.3.0
