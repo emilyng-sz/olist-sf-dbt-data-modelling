@@ -15,11 +15,11 @@ The dataset used contains ~100k anonymised Brazilian e-commerce transactions fro
 - Refer to `Olist Raw Data Schema.csv` for the Data Schema and consolidation of row level findings from `EDA_pandas.ipynb`
 
 ### Dataset Limitations
-OList dataset does not track changing dimensions. Particularly, the implementation of `orders` table has updates taking in-place of the table (e.g. delivered status modifies the row in-place by adding deleivered_datetime and overwriting the existing status). While there are beneits of this implementation design, my ingestion therefore focuses on a one-time bulk ingestion. 
+Olist dataset does not track changing dimensions. Particularly, the implementation of `orders` table has updates taking in-place of the table (e.g. delivered status modifies the row in-place by adding deleivered_datetime and overwriting the existing status). While there are beneits of this implementation design, my ingestion therefore focuses on a one-time bulk ingestion. 
 
 ## Data Architecture Design Decisions
 
-### Snowflake 
+### Snowflake
 
 #### Cost Management
 - Cost is incured via:
@@ -28,7 +28,37 @@ OList dataset does not track changing dimensions. Particularly, the implementati
   - Storage charged monthly at ~$23/TB/month on-demand
     - This is relatively cheap
 
+#### Data Management
+- dbt provides three materialisation options
+  1. **View**: dbt runs CREATE OR REPLACE VIEW. No data is stored, only the query logic.
+  2. **Table**: dbt runs CREATE OR REPLACE TABLE AS SELECT. Data is physically written to Snowflake storage.
+  3. **Ephermeral**: dbt does not create anything in Snowflake. The SQL query logic is injected as a CTE to downstream dbt models. Query exists only in compiled SQL, not in Snowflake.
+    - Ephermeral is good if int table is simple
+    - Since ephermeral data cannot be queried, test failures are harder to trace
+- Staging is materialised as View, as it is a 1-1 mapping to raw data, one-time loaded to Snowflake
+- Intermediate is materialised as View by default, but certain complex tables are materialised as Tables.
+- Marts are Tables for efficient querying
 
+## dbt
+This is initialised in the `transform` folder with folder structure
+
+```
+transform/
+├── models/
+│   ├── staging/          # stg_ models
+│   ├── intermediate/     # int_ models (joins, business logic)
+│   └── marts/            # fct_ and dim_ models (final layer)
+├── tests/
+├── macros/
+├── seeds/
+├── snapshots/
+├── dbt_project.yml       # project configuration
+└── packages.yml          # external packages
+```
+
+### dbt Implementation Limitations
+- There is only one developer (myself) on this project, and there is therefore only one dev environment
+- The same role that ingestions data to the raw schema is used to transform the data
 
 ## Data Pipeline
 
@@ -40,7 +70,9 @@ OList dataset does not track changing dimensions. Particularly, the implementati
     - Non null columns are not enforced here
 
 2. `stg` models are still a 1-1 mapping of `raw` tables with only data integrity based cleaning rules applied 
-  - Type casting, renaming columns, string cleaning, replacing null values (with technical default)
+  - Transformations in this step should be **reversible** and **not requiring specific business judgement** 
+    - E.g. 1. Upper casing of `state` column is reversible and matches Brazilian postal authority standards. The casing does not contain business meaning pertaining to Olist.
+    - E.g. 2. Cleaning `city` column to match equivalence across tables is non-reversible and is a business decision about equivalence, i.e. 'são paulo' and 'sao paulo' being the same entity serves a specific business purpose and does NOT belong in staging.
   - No PII masking required for this dataset
 
 3. Build intermediate tables
@@ -58,6 +90,11 @@ OList dataset does not track changing dimensions. Particularly, the implementati
     b. Customer x Products Table
   - ERD:
 ![alt text](image.png)
+
+# How to run
+1. Venv
+2. pip install requirements.txt
+3. dbt deps
 
 ### Business Use Cases
 - Products Table: 
