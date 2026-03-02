@@ -1,0 +1,34 @@
+version: 2
+
+models:
+
+  - name: dim_zip_code
+    description: >
+      Geographic dimension containing one row per unique zip code prefix.
+      Built from the most complete union of zip codes across geolocation,
+      sellers, and customers sources. Used as a FK target by dim_customers
+      and dim_sellers.
+    # Enforce constraints on the warehouse. This is viable because Snowflake supports it
+    # This requires explicit data_type on all columns which will otherwise fail
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: geolocation_zip_code_prefix
+        description: "Primary key"
+        data_type: integer
+        constraints:
+          - type: primary_key
+        tests:
+          - unique
+          - not_null
+      - name: geolocation_city
+        data_type: varchar
+        tests:
+          - not_null
+      - name: geolocation_state
+        data_type: varchar
+        tests:
+          - not_null
+      - name: _updated_at_sgt
+        data_type: timestamp_tz
