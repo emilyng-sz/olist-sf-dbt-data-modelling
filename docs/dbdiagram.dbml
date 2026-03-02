@@ -1,0 +1,89 @@
+Table dim_customers {
+  customer_sk integer [primary key]
+  customer_durable_id varchar
+  customer_zip_code_prefix integer
+  valid_from timestamp
+  valid_to timestamp
+  is_current boolean
+}
+
+Table fct_order_items {
+  order_items_sk integer [primary key]
+  order_item_id int
+  order_id varchar
+  product_id varchar
+  seller_id varchar
+  shipping_limit_date timestamp
+  price float
+  freight_value float
+}
+
+Table dim_orders {
+  order_id varchar [primary key]
+  customer_sk varchar
+  order_status varchar
+  order_purchase_timestamp timestamp
+  order_approved_at timestamp
+  order_delivered_carrier_date timestamp
+  order_delivered_customer_date timestamp
+  order_estimated_delivery_date timestamp
+  last_updated timestamp
+}
+
+Table fct_payments {
+  payment_sk integer
+  order_id varchar
+  payment_sequential integer
+  payment_type varchar
+  payment_installments integer
+  payment_value float
+}
+
+Table fct_reviews {
+  review_id varchar [primary key]
+  order_id varchar
+  review_score integer
+  review_comment_title varchar
+  review_comment_message varchar
+  review_creation_date timestamp
+  review_answer_timestamp timestamp
+}
+
+Table dim_sellers {
+  seller_id varchar [primary key]
+  seller_zip_code_prefix integer
+}
+
+Table dim_products {
+  product_id varchar [primary key]
+  category_sk integer
+  product_name_length integer
+  product_desc_length integer
+  product_photos_qty integer
+  product_weight_g integer
+  product_length_cm integer
+  product_height_cm integer
+  product_width_cm integer
+}
+
+Table dim_category {
+  category_sk integer [primary key]
+  category_name varchar 
+  category_name_english varchar
+}
+
+Table dim_zip_code {
+  geolocation_zip_code_prefix integer [primary key]
+  geolocation_city varchar
+  geolocation_state varchar
+}
+
+Ref: dim_orders.order_id < fct_order_items.order_id // many-to-one
+Ref: dim_customers.customer_sk < dim_orders.customer_sk
+Ref: dim_orders.order_id > fct_payments.order_id
+Ref: dim_orders.order_id > fct_reviews.order_id
+Ref: fct_order_items.seller_id > dim_sellers.seller_id
+Ref: fct_order_items.product_id > dim_products.product_id
+Ref: dim_products.category_sk > dim_category.category_sk
+Ref: dim_sellers.seller_zip_code_prefix > dim_zip_code.geolocation_zip_code_prefix
+Ref: dim_customers.customer_zip_code_prefix > dim_zip_code.geolocation_zip_code_prefix
