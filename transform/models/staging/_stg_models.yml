@@ -1,0 +1,50 @@
+# models/staging/_stg_models.yml
+# Note: _id values are not expected to be unique at this stage
+version: 2
+
+models:
+  - name: stg_olist_customers
+    description: "Cleaned customers from raw layer"
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+      - name: customer_unique_id
+        tests:
+          - not_null
+      - name: customer_state
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "rlike '^[A-Z]{2}$'"
+              config:
+                severity: warn
+  - name: stg_olist_sellers
+    description: "Cleaned sellers from raw layer"
+    columns:
+      - name: seller_id
+        tests:
+          - not_null
+      - name: seller_state
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "rlike '^[A-Z]{2}$'"
+              config:
+                severity: warn
+  - name: stg_olist_geolocation
+    description: "Cleaned geolocation from raw layer"
+    columns:
+      - name: geolocation_zip_code_prefix
+        tests:
+          - not_null
+      - name: geolocation_state
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "rlike '^[A-Z]{2}$'"
+              config:
+                severity: warn
