@@ -1,0 +1,38 @@
+version: 2
+
+models:
+
+  - name: int_zip_code
+    description: >
+      Most complete zip code dimension built by unioning geolocation (primary),
+      sellers (secondary), and customers (tertiary). One row per unique zip code
+      prefix, always resolved from the highest-priority source available.
+    columns:
+      - name: zip_code_prefix
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: city
+        description: "Canonical city name, initcap-normalised and accent-cleaned"
+        tests:
+          - not_null
+      - name: state
+        description: "Two-letter state code, uppercased in staging"
+        tests:
+          - not_null
+    
+  - name: int_sellers
+    description: >
+      Sellers with surrogate key. City and state dropped in favour of
+      zip code FK to dim_zip_code
+    columns:
+      - name: seller_sk
+        tests:
+          - unique
+          - not_null
+      - name: seller_id
+        tests:
+          - unique
+          - not_null
+      - name: seller_zip_code_prefix
