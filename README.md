@@ -77,7 +77,7 @@ transform/
 
 3. Build intermediate tables
   - Business logic is applied here:
-      - Add "Uncategorised" as a new category
+      - Add "uncategorised" as a new category
       - Datetime validity (e.g. based on order_status) and order_status validility
   - Each intermediate table has a clear purpose
   - Some tables are clean enough that do not require this intermediate layer
@@ -95,6 +95,10 @@ transform/
 1. Venv
 2. pip install requirements.txt
 3. dbt deps
+4. python main.py : to load raw data tables to Snowflake
+5. `dbt debug`: tests that connection to Snowflake works
+6. `dbt run`: load tables
+7. `dbt test`: run tests
 
 ### Business Use Cases
 - Products Table: 
