@@ -32,5 +32,8 @@ models:
       +schema: marts
       +materialized: table      # or incremental for large tables
 
+vars:
+  uncategorised_label: 'uncategorised'
+  
 # Configuring models
 # Full documentation: https://docs.getdbt.com/docs/configuring-models
