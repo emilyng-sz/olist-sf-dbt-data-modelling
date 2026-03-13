@@ -25,9 +25,13 @@ transform/
 
 ## How Data Flows to the Marts Layer
 
-stg_olist_geolocation  ─┐
-stg_olist_sellers      ─┼──► int_zip_codes ──► dim_zip_code
-stg_olist_customers    ─┘
+```
+stg_olist_geolocation                 ─┐
+stg_olist_sellers                     ─┼──► int_zip_codes ──► dim_zip_code
+stg_olist_customers                   ─┘
+stg_product_category_name_translation ─┐
+stg_olist_products                    ─┘──► int_categories
+```
 
 ## Prerequisites
 - Ensure `dbt debug` works
@@ -37,9 +41,13 @@ stg_olist_customers    ─┘
 ```
 dbt run                        # uses whatever `target: dev` is set to in profiles.yml
 dbt run --target prod          # explicitly runs against prod
-dbt test                       # compiles each (custom one-off) test from `tests/` folder into a SELECT statement and executes it in Snowflake
+dbt test                       # compiles each (custom one-off) test from `tests/` folder into a SELECT statement and executes it in Snowflake (i.e. tables must first exist)
 
 dbt parse --target dev         # validates YAML syntax and catches structural errors without executing anything in Snowflake
+
+# Visualise the full DAG in the browser
+dbt docs generate --target dev
+dbt docs serve                 # visualise warehouse info on http://localhost:8080
 ```
 `dbt run`
 1. Scans the `models/` folder recursively for every .sql file (defined in `dbt_project.yml`)
@@ -66,7 +74,12 @@ create or replace view dev_alice_stg.stg_olist_orders as (
 
 ## Model files in dbt
 
-- CTEs are comma separated. A comma after CTE indicates parser to expect another CTE, instead of a `SELECT` statement.
+- **CTEs**
+    - used to represent one discrete transformation step or logic (e.g. cleaned, joined)
+    - the final `SELECT` statement should be a simple step to emit the table. 
+        - for `stg` and `int`, `SELECT *` is allowed
+        - for final `mart` layer, columns should be explicit
+    - are comma separated. A comma after CTE indicates parser to expect another CTE, instead of a `SELECT` statement.
 - **Reference**: 
     - `{{ ref() }}` takes the model filename (without .sql) as its argument. dbt then resolves it to the fully qualified Snowflake path **internally**
     - schema prefixes inside `ref()` is therefore incorrect.
