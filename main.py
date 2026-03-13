@@ -5,9 +5,10 @@ from extract_load.logger import setup_logger
 from extract_load.raw_table_schemas import RAW_TABLE_SCHEMAS
 from extract_load.ingestion_raw import load_tables
 
-logger = setup_logger("logs/pipeline.log")
-load_dotenv("config.env")
+#logger = setup_logger("logs/pipeline.log")
+#load_dotenv("config.env")
 
 load_tables(
-    check_exists = False
+    full_reload=True,
+    check_exists=True
 )
