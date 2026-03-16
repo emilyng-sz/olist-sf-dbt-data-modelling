@@ -20,20 +20,7 @@ models:
                 expression: "rlike '^[A-Z]{2}$'"
               config:
                 severity: warn
-  - name: stg_olist_sellers
-    description: "Cleaned sellers from raw layer"
-    columns:
-      - name: seller_id
-        tests:
-          - not_null
-      - name: seller_state
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: "rlike '^[A-Z]{2}$'"
-              config:
-                severity: warn
+
   - name: stg_olist_geolocation
     description: "Cleaned geolocation from raw layer"
     columns:
@@ -41,6 +28,57 @@ models:
         tests:
           - not_null
       - name: geolocation_state
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "rlike '^[A-Z]{2}$'"
+              config:
+                severity: warn
+
+  - name: stg_olist_order_items
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: order_item_id
+        tests:
+          - not_null
+
+  - name: stg_olist_order_payments
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: payment_sequential
+        tests:
+          - not_null
+
+  - name: stg_olist_order_reviews
+    columns:
+      - name: review_id
+        tests: 
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+
+  - name: stg_olist_order_items
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+
+  - name: stg_olist_sellers
+    description: "Cleaned sellers from raw layer"
+    columns:
+      - name: seller_id
+        tests:
+          - not_null
+      - name: seller_state
         tests:
           - not_null
           - dbt_utils.expression_is_true:
