@@ -26,7 +26,7 @@ def load_tables(
     )
     # Check if cursor is valid
     if not cursor_raw:
-        logger.error(f"Function load_tables() existed due to invalid snowflake cursor")
+        logger.error(f"Function load_tables() exited due to invalid snowflake cursor")
         return
     
     for file in Path(os.getenv("RAW_DATA_DIR")).iterdir():
