@@ -37,13 +37,24 @@ def load_tables(
                 full_reload=full_reload,
                 check_exists=check_exists)
 
+def _environ_variables_complete() -> bool:
+    required_vars = ["SF_ACCOUNT", "SF_USERNAME", "SF_PASSWORD", "SF_WAREHOUSE", "SF_ROLE", "SF_DATABASE"]
+    missing = [v for v in required_vars if os.getenv(v) is None]
+    if missing:
+        logger.error(f"Missing environment variables: {missing}")
+        return False
+    return True
+    
 def _init_snowflake_conn(
-        schema: str = None) -> snowflake.connector.cursor.SnowflakeCursor:
+        schema: str) -> snowflake.connector.cursor.SnowflakeCursor:
     """
     Initialised connection to snowflake with optional schema specification
     Returns cursor for downstream SQL executions
     """
     try:
+        if not _environ_variables_complete():
+            raise Exception("Missing environ variables")
+
         conn = snowflake.connector.connect(
             account=os.getenv("SF_ACCOUNT"),
             user=os.getenv("SF_USERNAME"),
