@@ -1,9 +1,9 @@
-name: 'olist_wh_transform'
+name: 'transform'
 version: '1.0.0'
+config-version: 2
+
 profile: 'transform'
 
-# different types of dbt files 
-# this is relative to where `dbt run` is run
 model-paths: ["transform/models"]
 analysis-paths: ["transform/analyses"]
 test-paths: ["transform/tests"]
@@ -11,29 +11,28 @@ seed-paths: ["transform/seeds"]
 macro-paths: ["transform/macros"]
 snapshot-paths: ["transform/snapshots"]
 
-# directories to be removed by `dbt clean`
-clean-targets:
-  - "target"
-  - "dbt_packages"
-
-# Specifies sink file type and schema for each model (specified by folder)
-# These settings can be overridden in the individual model
-# files using the `{{ config(...) }}` macro e.g. {{ config(materialized='table') }}
-# Config indicated by + and applies to all files under models/staging/
-models:
-  olist_wh_transform:    # must match the `name:` in this file
-    staging:             # must match the folder names in models
-      +materialized: view
-      +schema: stg
-    intermediate:
-      +schema: int
-      +materialized: view
-    marts:
-      +schema: marts
-      +materialized: table      # or incremental for large tables
+target-path:  "target"
+clean-targets: ["target", "dbt_packages"]
 
 vars:
   uncategorised_label: 'uncategorised'
-  
-# Configuring models
-# Full documentation: https://docs.getdbt.com/docs/configuring-models
+
+models:
+  transform:
+    staging:
+      +materialized: view
+      +schema: stg
+    intermediate:
+      +materialized: view
+      +schema: int
+    marts:
+      core:
+        +materialized: table
+        +schema: core
+      business:
+        +materialized: table
+        +schema: business
+
+snapshots:
+  transform:
+    +target_schema: snapshots
