@@ -22,17 +22,38 @@ def load_tables(
         full_reload, check_exists
     ))
     cursor_raw = _init_snowflake_conn(
-        schema="raw"
+        schema=os.getenv("SF_RAW_SCHEMA_NAME")
     )
     # Check if cursor is valid
     if not cursor_raw:
         logger.error(f"Function load_tables() exited due to invalid snowflake cursor")
         return
+
+    # Define variables
+    database_name = os.getenv("SF_DATABASE")
+    schema_name = os.getenv("SF_RAW_SCHEMA_NAME")
+    raw_stage_name = os.getenv("SF_RAW_STAGE_NAME")
+    stage_name = f"{database_name}.{schema_name}.{raw_stage_name}"
+
+    # 1. Create Schema if not exists
+    logger.info(f"[1/2] Ensuring schema {schema_name} exists...")
+    schema_result = cursor_raw.execute(
+        f"CREATE SCHEMA IF NOT EXISTS {schema_name}").fetchone()
+    logger.debug(f"      Status: {schema_result[0]}")
+
+    # 2. Create Stage if not exists
+    logger.info(f"[2/2] Ensuring stage {stage_name} exists...")
+    stage_result = cursor_raw.execute(
+        f"CREATE STAGE IF NOT EXISTS {stage_name}").fetchone()
+    logger.debug(f"      Status: {stage_result[0]}")
     
     for file in Path(os.getenv("RAW_DATA_DIR")).iterdir():
         if file.is_file():
             _upload_csv_to_raw(
                 cursor=cursor_raw,
+                database_name=database_name,
+                schema_name=schema_name,
+                raw_stage_name=raw_stage_name,
                 file_path=file,
                 full_reload=full_reload,
                 check_exists=check_exists)
@@ -88,6 +109,8 @@ def _init_snowflake_conn(
 
 def _upload_csv_to_raw(
         cursor: snowflake.connector.cursor.SnowflakeCursor,
+        database_name: str,
+        schema_name: str,
         file_path: Path,
         full_reload: bool = True,
         check_exists: bool = True,
@@ -101,7 +124,6 @@ def _upload_csv_to_raw(
     
     # Define variables
     table_name = file_path.stem
-    stage_name = os.getenv("SF_RAW_STAGE_NAME")
     ddl = RAW_TABLE_SCHEMAS.get(file_path.name, None)
     abs_file_path = os.getcwd() / file_path
 
@@ -110,7 +132,9 @@ def _upload_csv_to_raw(
     if not ddl:
         logger.error("ddl statement not found for key ", file_path.name)
         return
-    ddl_result = cursor.execute(ddl).fetchone()
+    ddl_result = cursor.execute(
+        ddl.replace("{database_name}", database_name)\
+           .replace("{schema_name}", schema_name)).fetchone()
     logger.debug(f"      Status: {ddl_result[0]}")
 
     if check_exists and "already exists, statement succeeded." in ddl_result[0]:
@@ -123,19 +147,19 @@ def _upload_csv_to_raw(
     # 2. Stage the file into Snowflake's internal stage
     logger.info(f"[2/3] Staging file {abs_file_path}")
     put_result = cursor.execute(f"""
-        PUT file:///{abs_file_path} @{stage_name}
+        PUT file:///{abs_file_path} @{database_name}.{schema_name}.{table_name}
         AUTO_COMPRESS=TRUE OVERWRITE=TRUE
     """).fetchall()
     logger.debug(f"      Status: {put_result[0][6]}")
 
     # 3. COPY INTO the target table by bulk loading
-    logger.info(f"[3/3] Loading into OLIST_DB.RAW.{table_name}")
+    logger.info(f"[3/3] Loading into {database_name}.{schema_name}.{table_name}")
     if full_reload:
         logger.info(f"First truncating table: {table_name}")
         cursor.execute(f"TRUNCATE TABLE {table_name}")
     copy_result = cursor.execute(f"""
-        COPY INTO OLIST_DB.RAW.{table_name}
-        FROM @{stage_name}/{file_path.name}.gz
+        COPY INTO {database_name}.{schema_name}.{table_name}
+        FROM @{database_name}.{schema_name}.{table_name}/{file_path.name}.gz
         FILE_FORMAT = (
             TYPE                         = 'CSV'
             SKIP_HEADER                  = 1
