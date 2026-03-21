@@ -12,29 +12,36 @@ with reviews as (
 
 ),
 
+orders as (
+
+    select order_id, order_sk from {{ ref('int_orders') }}
+
+),
+
 final as (
 
     select
-        review_sk,
-        review_id,                      -- natural key (not unique alone)
-        order_id,                       -- degenerate dimension (FK → dim_orders)
+        r.review_sk,
+        o.order_sk,                     -- FK → dim_orders (not all orders have reviews)
 
-        review_score,
-        is_valid_score,
-        review_sentiment,               -- negative / neutral / positive / unknown
-        has_comment,
+        r.review_score,
+        r.is_valid_score,
+        r.review_sentiment,               -- negative / neutral / positive / unknown
+        r.has_comment,
 
-        review_comment_title,
-        review_comment_message,
+        r.review_comment_title,
+        r.review_comment_message,
 
-        review_creation_date,
-        review_answer_timestamp,
-        hours_to_respond,               -- response lag in hours
+        r.review_creation_date,
+        r.review_answer_timestamp,
+        r.hours_to_respond,               -- response lag in hours
 
         -- metadata
         {{ metadata_columns() }}
 
-    from reviews
+    from reviews r
+    left join orders o
+        on r.order_id = o.order_id
 
 )
 
