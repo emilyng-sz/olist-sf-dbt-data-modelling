@@ -21,7 +21,6 @@ final as (
 
     select
         product_sk,
-        product_id,
         category_sk,                        -- FK → dim_category
 
         product_name_length,
