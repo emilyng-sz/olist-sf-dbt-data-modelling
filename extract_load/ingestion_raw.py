@@ -10,6 +10,7 @@ logger = setup_logger("logs/pipeline.log")
 load_dotenv("config.env")
 
 def load_tables(
+        tables_to_load: list[str] = None,
         full_reload: bool = True,
         check_exists: bool = True
 ):
@@ -48,12 +49,12 @@ def load_tables(
     logger.debug(f"      Status: {stage_result[0]}")
     
     for file in Path(os.getenv("RAW_DATA_DIR")).iterdir():
-        if file.is_file():
+        if file.is_file() and (file.stem in tables_to_load):
             _upload_csv_to_raw(
                 cursor=cursor_raw,
                 database_name=database_name,
                 schema_name=schema_name,
-                raw_stage_name=raw_stage_name,
+                stage_name=raw_stage_name,
                 file_path=file,
                 full_reload=full_reload,
                 check_exists=check_exists)
@@ -111,6 +112,7 @@ def _upload_csv_to_raw(
         cursor: snowflake.connector.cursor.SnowflakeCursor,
         database_name: str,
         schema_name: str,
+        stage_name: str,
         file_path: Path,
         full_reload: bool = True,
         check_exists: bool = True,
@@ -147,7 +149,7 @@ def _upload_csv_to_raw(
     # 2. Stage the file into Snowflake's internal stage
     logger.info(f"[2/3] Staging file {abs_file_path}")
     put_result = cursor.execute(f"""
-        PUT file:///{abs_file_path} @{database_name}.{schema_name}.{table_name}
+        PUT file:///{abs_file_path} @{database_name}.{schema_name}.{stage_name}
         AUTO_COMPRESS=TRUE OVERWRITE=TRUE
     """).fetchall()
     logger.debug(f"      Status: {put_result[0][6]}")
@@ -159,7 +161,7 @@ def _upload_csv_to_raw(
         cursor.execute(f"TRUNCATE TABLE {table_name}")
     copy_result = cursor.execute(f"""
         COPY INTO {database_name}.{schema_name}.{table_name}
-        FROM @{database_name}.{schema_name}.{table_name}/{file_path.name}.gz
+        FROM @{database_name}.{schema_name}.{stage_name}/{file_path.name}.gz
         FILE_FORMAT = (
             TYPE                         = 'CSV'
             SKIP_HEADER                  = 1
