@@ -11,7 +11,7 @@ renamed as (
         cast(geolocation_lat as float)              as geolocation_lat,
         cast(geolocation_lng as float)              as geolocation_lng,
         geolocation_city,
-        geolocation_state,
+        upper(geolocation_state)                    as geolocation_state,
 
         -- metadata
         {{ metadata_columns() }}

@@ -15,7 +15,7 @@ def setup_logger(log_file: str = "logs/pipeline.log") -> loguru._logger.Logger:
         format=(
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
             "<level>{level:<8}</level> | "
-            "<cyan>{name}</cyan> | "
+            "<cyan>{name}:{function}</cyan> | "
             "<level>{message}</level>"
         ),
         colorize=True
@@ -25,7 +25,7 @@ def setup_logger(log_file: str = "logs/pipeline.log") -> loguru._logger.Logger:
     logger.add(
         log_file,
         level="DEBUG",
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {name} | {message}",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {name}:{function} | {message}",
         rotation="50 MB",       # new file after 50MB
         # retention="30 days",    # auto-delete logs older than 30 days
         compression="zip",      # compress rotated files
