@@ -33,6 +33,11 @@ final as (
         r.review_comment_message,
 
         r.review_creation_date,
+        
+        cast(
+            to_varchar(review_creation_date, 'YYYYMMDD')
+        as int)                                         as review_creation_date_sk,
+
         r.review_answer_timestamp,
         r.hours_to_respond,               -- response lag in hours
 
