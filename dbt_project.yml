@@ -36,3 +36,8 @@ models:
 snapshots:
   transform:
     +target_schema: snapshots
+
+tests:
+  olist_wh_transform:
+    +store_failures: true
+    +schema: test_failures     # failed rows written to dev_test_failures schema
