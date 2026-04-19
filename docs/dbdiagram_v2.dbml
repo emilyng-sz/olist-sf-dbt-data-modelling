@@ -1,0 +1,271 @@
+// ============================================================
+// OLIST E-COMMERCE — ENHANCED STAR SCHEMA
+// ============================================================
+// Layers: RAW → STAGING → CORE (dims + facts) → MARTS
+// Key changes from v1:
+//   - dim_orders upgraded to SCD2 (order_sk surrogate + versioning)
+//   - dim_sellers upgraded to SCD2 (seller_sk surrogate)
+//   - dim_products gets product_sk surrogate
+//   - dim_date added (date spine)
+//   - dim_zip_code gains lat/lng centroid
+//   - All fact FKs reference surrogate keys
+//   - fct_payments gets proper PK
+//   - Business marts added as wide denormalised tables
+// ============================================================
+
+
+// ------------------------------------------------------------
+// DATE DIMENSION
+// ------------------------------------------------------------
+
+Table dim_date {
+  date_sk integer [primary key]
+  full_date date [not null]
+  day_of_week varchar
+  day_of_week_num integer  // 1=Mon … 7=Sun
+  week_of_year integer
+  month_num integer
+  month_name varchar
+  quarter integer
+  year integer
+  is_weekend boolean
+  is_holiday_br boolean    // Brazilian public holidays
+
+  indexes {
+    full_date [unique]
+  }
+
+  Note: 'Date spine covering 2016–2020. Join to any timestamp column in facts/dims for time-series slicing.'
+}
+
+
+// ------------------------------------------------------------
+// CORE DIMENSIONS
+// ------------------------------------------------------------
+
+Table dim_customers {
+  customer_sk integer [primary key]
+  customer_durable_sk varchar [not null]    // surrogate key — stable across orders
+  customer_zip_code_prefix integer [ref: > dim_zip_code.geolocation_zip_code_prefix]
+  valid_from timestamp [not null]
+  valid_to timestamp                        // NULL = current record
+  is_current boolean [not null]
+
+  Note: 'SCD Type 2. A customer placing a new order from a different zip code generates a new version row.'
+}
+
+Table dim_sellers {
+  seller_sk varchar [not null]              // surrogate key
+  seller_zip_code_prefix integer [ref: > dim_zip_code.geolocation_zip_code_prefix]
+}
+
+Table dim_products {
+  product_sk varchar [not null]             // surrogate key
+  category_sk integer [ref: > dim_category.category_sk]
+  product_name_length integer
+  product_desc_length integer
+  product_photos_qty integer
+  product_weight_g integer
+  product_length_cm integer
+  product_height_cm integer
+  product_width_cm integer
+
+  Note: 'SCD Type 1 — overwrite on change. Surrogate key added for consistent FK referencing from facts.'
+}
+
+Table dim_category {
+  category_sk integer [primary key]
+  category_name varchar
+  category_name_english varchar
+
+  Note: 'SCD Type 1. Static lookup — category translations rarely change.'
+}
+
+Table dim_zip_code {
+  geolocation_zip_code_prefix integer [primary key]
+  geolocation_city varchar
+  geolocation_state varchar
+  geolocation_lat float
+  geolocation_lng float 
+
+  Note: 'Aggregated from raw geolocation table (median lat/lng per zip prefix). Enables seller-to-customer distance calculation.'
+}
+
+
+// ------------------------------------------------------------
+// ORDER DIMENSION
+// ------------------------------------------------------------
+
+Table dim_orders {
+  order_sk varchar [not null]               // surrogate key
+  customer_sk integer [ref: > dim_customers.customer_sk]
+  order_status varchar                      // created | approved | processing | shipped | delivered | cancelled
+  order_purchase_timestamp timestamp
+  order_approved_at timestamp
+  order_delivered_carrier_date timestamp
+  order_delivered_customer_date timestamp
+  order_estimated_delivery_date timestamp
+  order_purchase_date_sk integer [ref: > dim_date.date_sk] 
+  order_approved_at_date_sk integer [ref: > dim_date.date_sk] 
+  order_delivered_carrier_date_sk integer [ref: > dim_date.date_sk] 
+  order_delivered_customer_date_sk integer [ref: > dim_date.date_sk] 
+  order_estimated_delivery_date_sk integer [ref: > dim_date.date_sk]
+  last_updated timestamp
+}
+
+
+// ------------------------------------------------------------
+// FACT TABLES
+// ------------------------------------------------------------
+
+Table fct_order_items {
+  order_item_sk integer                     // surrogate key
+  order_sk varchar [ref: > dim_orders.order_sk]
+  product_sk varchar [ref: > dim_products.product_sk]
+  seller_sk varchar [ref: > dim_sellers.seller_sk]
+  purchase_date_sk integer [ref: > dim_date.date_sk]
+  shipping_limit_date_sk integer [ref: > dim_date.date_sk]
+  price float
+  freight_value float
+  shipping_limit_date timestamp
+
+  Note: '''
+  GRAIN: One row per order line item (one product per row).
+  An order with 3 products = 3 rows, each with its own seller and price.
+  seller_sk and product_sk reference the dimension snapshot at time of order.
+  '''
+}
+
+Table fct_payments {
+  payment_sk integer [primary key]          // FIXED — was missing proper PK
+  order_sk varchar [ref: > dim_orders.order_sk]
+  payment_date_sk integer [ref: > dim_date.date_sk]          // NEW
+  payment_sequential integer                // identifies split payments (1, 2, … per order)
+  payment_type varchar                      // credit_card | boleto | voucher | debit_card
+  payment_installments integer
+  payment_value float
+
+  Note: '''
+  GRAIN: One row per payment method per order.
+  payment_sequential distinguishes split payments on the same order.
+  Avoid SUM(payment_value) without grouping by order_sk — split payments will double-count.
+  '''
+}
+
+Table fct_reviews {
+  review_sk varchar [not null]              // surrogate key
+  order_sk varchar [ref: > dim_orders.order_sk]
+  review_creation_date_sk integer [ref: > dim_date.date_sk] 
+  review_score integer                      // 1–5
+  review_comment_title varchar
+  review_comment_message varchar
+  review_creation_date timestamp
+  review_answer_timestamp timestamp
+
+  Note: 'GRAIN: One row per review. In Olist, one review per order. review_sk is surrogate'
+}
+
+
+// ------------------------------------------------------------
+// BUSINESS MARTS
+// ------------------------------------------------------------
+
+Table mart_delivery_performance {
+  order_sk varchar [primary key]
+  seller_state varchar
+  customer_state varchar
+  product_category varchar
+  purchase_date date
+  estimated_delivery_date date
+  actual_delivery_date date
+  carrier_pickup_date date
+  days_to_carrier integer                   // seller handoff lag (purchase → carrier pickup)
+  days_carrier_to_customer integer          // last-mile duration
+  days_estimated_vs_actual integer          // positive = late, negative = early
+  is_on_time boolean
+  is_late boolean
+  freight_value float
+  seller_to_customer_distance_km float      // derived from zip code centroids
+
+  Note: '''
+  MART: Delivery performance analysis.
+  Use cases: on-time rate by state/category, carrier lag benchmarking,
+  estimated vs actual delivery accuracy, freight cost vs distance.
+  Source: dim_orders + fct_order_items + dim_sellers + dim_customers + dim_zip_code.
+  '''
+}
+
+Table mart_seller_benchmarking {
+  seller_sk varchar
+  seller_state varchar
+  month_year varchar                        // YYYY-MM
+  total_orders integer
+  total_items_sold integer
+  gmv float                                 // gross merchandise value (sum of price)
+  total_freight float
+  avg_order_value float
+  avg_review_score float
+  pct_5_star float
+  pct_1_star float
+  on_time_delivery_rate float
+  avg_days_to_ship float                    // purchase → carrier pickup
+  top_category varchar                      // highest revenue category for seller-month
+
+  indexes {
+    (seller_sk, month_year) [pk]
+  }
+
+  Note: '''
+  MART: Monthly seller scorecard for marketplace benchmarking.
+  Use cases: seller tiering, SLA enforcement, churn risk (declining scores),
+  category concentration risk.
+  Source: dim_sellers + fct_order_items + fct_reviews + dim_orders + dim_category.
+  '''
+}
+
+Table mart_customer_segmentation {
+  customer_durable_sk varchar [primary key]
+  customer_state varchar
+  first_order_date date
+  last_order_date date
+  days_since_last_order integer             // Recency
+  total_orders integer                      // Frequency
+  total_spend float                         // Monetary
+  avg_order_value float
+  avg_review_score float
+  preferred_category varchar
+  preferred_payment_type varchar
+  is_repeat_customer boolean
+  rfm_segment varchar                       // Champions | Loyal | At Risk | Lost | New
+  cohort_month varchar                      // YYYY-MM of first purchase
+
+  Note: '''
+  MART: RFM-ready customer table for segmentation and CLV modelling.
+  Use cases: churn prediction, cohort retention curves, personalisation,
+  re-engagement targeting.
+  Source: dim_customers + fct_order_items + fct_payments + fct_reviews.
+  '''
+}
+
+Table mart_payment_analysis {
+  order_sk varchar [primary key]
+  purchase_month varchar                    // YYYY-MM
+  num_payment_methods integer              // >1 = split payment
+  is_split_payment boolean
+  payment_types_used varchar               // comma-separated e.g. 'credit_card,voucher'
+  total_payment_value float
+  max_installments integer
+  uses_credit_card boolean
+  uses_boleto boolean
+  uses_voucher boolean
+  product_category varchar
+  customer_state varchar
+  order_gmv float
+
+  Note: '''
+  MART: Payment behaviour analysis.
+  Use cases: instalment adoption by category/state, split payment frequency,
+  boleto vs credit card mix, voucher redemption rates.
+  Source: fct_payments + fct_order_items + dim_customers + dim_category.
+  '''
+}
