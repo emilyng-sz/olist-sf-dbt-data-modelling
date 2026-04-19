@@ -1,0 +1,23 @@
+my_project:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: your_snowflake_account     # e.g. abc12345.us-east-1
+      user: olist_svc                     # name of the user, matching what is created on Snowflake
+      password: your_password             # or use externalbrowser / key-pair auth
+      role: olist_svc_role                # dedicated role, matching what is created on Snowflake
+      database: olist_db                  # name of database created on Snowflake
+      warehouse: olist_wh                 # name of warehouse created on Snowflake
+      schema: dev                         # personal dev schema, not prod
+      threads: 4
+    prod:
+      type: snowflake
+      account: your_snowflake_account
+      user: olist_svc
+      password: your_password
+      role: olist_svc_role
+      database: olist_db
+      warehouse: olist_wh
+      schema: prod
+      threads: 4
